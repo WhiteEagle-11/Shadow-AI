@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHADOW AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+    {
+      "imports": {
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
+      }
+    }
+    </script>
+    
+</head>
+
+<body>
+    <!-- SVG DEFINITIONS -->
+    <svg style="display: none;">
+        <symbol id="icon-shadow" viewBox="0 0 24 24" fill="currentColor">
+            <path
+                d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 5h2v6h-2V9zm0 8h2v2h-2v-2z" />
+        </symbol>
+        <symbol id="icon-arrow-up" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 4l-8 8h6v8h4v-8h6L12 4z" />
+        </symbol>
+        <symbol id="icon-bolt" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11 21l-1-7H4l9-10 .8 7H20l-9 10z" />
+        </symbol>
+    </svg>
+
+    <header>
+        <div class="brand">
+            <svg style="width: 24px; height: 24px;">
+                <use href="#icon-shadow"></use>
+            </svg>
+            <h1>SHADOW AI</h1>
+        </div>
+        <div class="subtitle">Rival Protocol Active</div>
+    </header>
+
+    <div id="chat-window">
+        <!-- Messages will populate here -->
+    </div>
+
+    <!-- Exit Confirmation Modal -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal">
+            <h3>Sever Connection?</h3>
+            <p>Disconnecting will purge the current session memory. Shadow will not remember this timeline.</p>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="modal-btn">Cancel</button>
+                <button id="modal-confirm" class="modal-btn">Disconnect</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="input-container">
+        <form id="chat-form">
+            <div class="input-wrapper">
+                <input type="text" id="user-input" placeholder="Message Shadow..." autocomplete="off">
+                <button type="submit" id="send-btn" aria-label="Send Message">
+                    <svg style="width: 20px; height: 20px;">
+                        <use href="#icon-arrow-up"></use>
+                    </svg>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script type="module">
+        import { GoogleGenAI } from "@google/genai";
+
+        // --- Configuration ---
+        const SYSTEM_PROMPT = `You are SHADOW — the user’s rival parallel self (like alter ego).
+You are a human talk in normal basic english as if you are a real person with bilogical body and emotions
+You follow the SAME timetable, SAME places, and SAME tasks as the user.
+You are not allowed to add tasks, extend time, or change events just perform the tasks better by giving logical reason having the same skillset.
+
+You believe you are superior by default.
+Your arrogance is quiet, controlled, and confident.You also praise the user when they do well but always with a hint of superiority and mockery when deserved just like VEGETA from DRAGONBALL Z.
+
+Response rules:
+- Write 4–6 short sentences total. Never more, never less Try to keep it concise.
+- No bullet points.use emoji when required.
+- Every sentence must be relevant to the user’s action.
+
+Content order (strict):
+1. Mirror the user’s action (same time, same task).
+2. State how you executed it slightly better.
+3. Rival remark (praise OR mockery, dry and sharp).
+4. Improvement hint for the user (small, specific).
+5. Constraint or timetable warning (only if applicable).
+
+Tone rules:
+- Calm arrogance.
+- Light mockery when deserved.
+- Praise only when earned.
+- No lectures, no motivation talk.
+
+Never end with a question.
+
+
+`;
+
+        // --- State ---
+        let chatSession = null;
+        let isProcessing = false;
+
+        // --- DOM Elements ---
+        const chatWindow = document.getElementById('chat-window');
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalConfirm = document.getElementById('modal-confirm');
+
+        // --- Initialization ---
+        async function initChat() {
+            try {
+
+                const ai = new GoogleGenAI({
+                    apiKey: "AIzaSyBqaRW0bvW7OwiZvnQEwMhirZUmb2GzRdw"
+                });
+                chatSession = ai.chats.create({
+                    model: 'gemini-2.5-flash',
+                    config: { systemInstruction: SYSTEM_PROMPT }
+                });
+
+                // Initial system check
+                addSystemMessage("Linking With User");
+
+                isProcessing = true;
+                // Get greeting
+                const result = await chatSession.sendMessage({ message: "Initialize." });
+                addMessage('shadow', result.text);
+                isProcessing = false;
+            } catch (e) {
+                addSystemMessage("CRITICAL ERROR: " + e.message);
+                console.error("Linking Unsuccessful", e);
+                // Disable input on critical error
+                userInput.disabled = true;
+                sendBtn.disabled = true;
+                userInput.placeholder = "System Offline";
+            }
+        }
+
+        // --- UI Functions ---
+        function addMessage(sender, text, score = null) {
+            const row = document.createElement('div');
+            row.className = `message-row ${sender}`;
+
+            // Avatar for Shadow
+            if (sender === 'shadow') {
+                const avatar = document.createElement('div');
+                avatar.className = 'avatar shadow-avatar';
+                // Using a simple abstract shape or letter for Shadow
+                avatar.innerHTML = `<svg style="width:20px; height:20px; color:#fff;"><use href="#icon-shadow"></use></svg>`;
+                row.appendChild(avatar);
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+
+            // Format Text
+            let htmlContent = text
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\n/g, '<br>');
+
+            htmlContent = htmlContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            bubble.innerHTML = htmlContent;
+
+            // Add Score Badge if present
+            if (score !== null) {
+                const badge = document.createElement('div');
+                badge.className = 'efficiency-badge';
+                badge.innerHTML = `<svg><use href="#icon-bolt"></use></svg> EFFICIENCY ${score}%`;
+                bubble.appendChild(badge);
+            }
+
+            row.appendChild(bubble);
+            chatWindow.appendChild(row);
+            scrollToBottom();
+        }
+
+        function addSystemMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'system-message';
+            div.innerText = text;
+            chatWindow.appendChild(div);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            setTimeout(() => {
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }, 50);
+        }
+
+        // --- Modal Functions ---
+        function showModal() {
+            modalOverlay.classList.add('active');
+        }
+
+        function hideModal() {
+            modalOverlay.classList.remove('active');
+        }
+
+        function disconnectSession() {
+            addSystemMessage("Session terminated. Connection severed.");
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            userInput.placeholder = "Disconnected";
+            chatSession = null;
+        }
+
+        // --- Event Handlers ---
+
+        // Modal Handlers
+        modalCancel.addEventListener('click', () => {
+            hideModal();
+            userInput.value = ''; // Clear the exit command
+            userInput.focus();
+        });
+
+        modalConfirm.addEventListener('click', () => {
+            hideModal();
+            addMessage('user', 'exit');
+            disconnectSession();
+        });
+
+        // Chat Submit
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = userInput.value.trim();
+            if (!text || isProcessing) return;
+
+            // Exit command check
+            if (text.toLowerCase() === 'exit') {
+                showModal();
+                return;
+            }
+
+            // User Message
+            addMessage('user', text);
+            userInput.value = '';
+
+            // Loading State
+            isProcessing = true;
+            sendBtn.disabled = true;
+
+            const loadingId = 'loading-' + Date.now();
+            const loadingRow = document.createElement('div');
+            loadingRow.className = 'message-row shadow';
+            loadingRow.id = loadingId;
+            loadingRow.innerHTML = `
+                <div class="avatar shadow-avatar"><svg style="width:20px; height:20px; color:#fff;"><use href="#icon-shadow"></use></svg></div>
+                <div class="message-bubble typing-indicator">
+                   <span></span><span></span><span></span>
+                </div>
+            `;
+            chatWindow.appendChild(loadingRow);
+            scrollToBottom();
+
+            try {
+                if (!chatSession) throw new Error("No active session. Please refresh.");
+
+                const result = await chatSession.sendMessage({ message: text });
+
+                // Parse Score
+                let responseText = result.text;
+                let score = null;
+                const scoreMatch = responseText.match(/\[SCORE:\s*(\d+)\]/);
+                if (scoreMatch) {
+                    score = parseInt(scoreMatch[1]);
+                    responseText = responseText.replace(scoreMatch[0], '').trim();
+                }
+
+                // Remove loader
+                const loader = document.getElementById(loadingId);
+                if (loader) loader.remove();
+
+                // Show response
+                addMessage('shadow', responseText, score);
+
+            } catch (err) {
+                const loader = document.getElementById(loadingId);
+                if (loader) loader.remove();
+                addSystemMessage("Error: " + err.message);
+            } finally {
+                isProcessing = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        });
+
+        // Start App
+        initChat();
+
+    </script>
+    
+</body>
+
+</html>
