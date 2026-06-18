@@ -1,3 +1,6 @@
+THIS IS ME FROM FUTURE. IT IS THE FIRST PROJECT 90% AI. THAT'S WHY ITS HERE. 
+DON'T SEE IT PROFESSIONALY
+
 MINOR PROJECT 
 
 Use **node server.js** to run the application on local host and make sure express is installed.
